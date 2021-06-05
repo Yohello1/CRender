@@ -466,8 +466,8 @@ void cr::display::start(
                             ImGui::InputFloat3("Position##Camera", glm::value_ptr(position));
                             ImGui::InputFloat3("Scale##Camera", glm::value_ptr(scale));
 
-                            transform = glm::translate(transform, -position);
-                            transform = glm::scale(transform, scale);
+                            transform = glm::translate(glm::mat4(1), position);
+//                            transform = glm::scale(transform, scale);
                         }
                         ImGui::Unindent(16.f);
                     }
@@ -481,7 +481,7 @@ void cr::display::start(
                             ImGui::Indent(16.f);
 
                             // Light type
-                            const char *       items[]      = { "Metal", "Smooth" };
+                            const char *       items[]      = { "Metal", "Smooth", "Glass" };
                             static const char *current_item = nullptr;
 
                             switch (material.info.type)
@@ -489,6 +489,8 @@ void cr::display::start(
                             case cr::material::type::metal: current_item = items[0]; break;
 
                             case cr::material::type::smooth: current_item = items[1]; break;
+
+                            case cr::material::type::glass: current_item = items[2]; break;
                             }
 
                             if (ImGui::BeginCombo(
@@ -518,12 +520,14 @@ void cr::display::start(
                                 material.info.type = cr::material::type::metal;
                             else if (current_item == items[1])
                                 material.info.type = cr::material::type::smooth;
+                            else if (current_item == items[2])
+                                material.info.type = cr::material::type::glass;
 
                             ImGui::SliderFloat(
                               (std::string("IOR") + "##" + material.info.name).c_str(),
                               &material.info.ior,
-                              0,
-                              1);
+                              1,
+                              2);
                             ImGui::SliderFloat(
                               (std::string("Roughness") + "##" + material.info.name).c_str(),
                               &material.info.roughness,
@@ -534,6 +538,11 @@ void cr::display::start(
                               &material.info.emission,
                               0,
                               50);
+                            ImGui::SliderFloat(
+                              (std::string("Reflectiveness") + "##" + material.info.name).c_str(),
+                              &material.info.reflectiveness,
+                              0,
+                              1);
                             ImGui::ColorEdit3(
                               (std::string("Colour") + "##" + material.info.name).c_str(),
                               glm::value_ptr(material.info.colour));

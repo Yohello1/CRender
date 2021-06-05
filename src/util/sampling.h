@@ -53,13 +53,27 @@ namespace cr::sampling
          *
          * F(v,h,f0,f90) = f0 + (f90 - f0) (1 - v * h) ^ 5
          *
+         * Note: This has an approximation within it, so it's not exactly as derived
+         *
          */
-        [[nodiscard]] inline glm::vec3 specular_f(float u, float f0, float f90)
+        [[nodiscard]] inline float specular_f(float u, float f0)
         {
-            return f0 + (glm::vec3(f90, f90, f90) - f0) * glm::pow(1.0f - u, 5.0f);
+            const auto f = glm::pow(1.0f - u, 5.0f);
+            return f + f0 * (1.0f - f);
         }
 
     }    // namespace cook_torrence
+
+    [[nodiscard]] inline float frensel_reflectance(
+      float cos_in,
+      float cos_out,
+      float eta)
+    {
+        const auto r_perp = (eta * cos_in - cos_out) / (eta * cos_in + cos_out);
+        const auto r_parallel = (cos_in - eta * cos_out) / (cos_in + eta * cos_out);
+
+        return 0.5 * (r_perp * r_perp + r_parallel * r_parallel);
+    }
 
     [[nodiscard]] inline glm::vec3 hemp_rand()
     {

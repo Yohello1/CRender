@@ -25,17 +25,112 @@ namespace
         if (record.material->info.tex.has_value())
             out.albedo = record.material->info.tex->get_uv(record.uv.x, record.uv.y);
         else
-            out.albedo   = record.material->info.colour;
+            out.albedo = record.material->info.colour;
 
         switch (record.material->info.type)
         {
-        case cr::material::metal:
+        case cr::material::glass:
+        {
+            // Might not need this line of code
+//            const auto dir_in         = glm::normalize(ray.direction);
+//            const auto cos_view       = glm::dot(dir_in, record.normal);
+//            const auto flipped_normal = cos_view > 0.0f;
+//
+//            auto eta    = record.material->info.ior;
+//            auto normal = record.normal;
+//            auto cos_in = 0.0f;
+//
+//            if (flipped_normal)
+//            {
+//                cos_in = cos_view;
+//                normal = -normal;
+//            }
+//            else
+//            {
+//                cos_in = -cos_view;
+//                eta    = 1.0f / eta;
+//            }
+//
+//            const auto cos_out_sq = 1.0f - eta * eta * (1.0f - cos_in * cos_in);
+//            const auto cos_out = glm::sqrt(glm::max(0.0f, cos_out_sq));
+//
+//            const auto f_refl = cr::sampling::frensel_reflectance(cos_in, cos_out, eta);
+//
+//            const auto refl = (cos_out_sq <= 0) || (::randf() < f_refl);
+//
+//            if (refl)
+//            {
+//                out.ray.origin = record.intersection_point + 0.001f * normal;
+//                out.ray.direction = dir_in + 2 * cos_in * normal;
+//            }
+//            else
+//            {
+//                out.ray.origin = record.intersection_point - 0.001f * normal;
+//                out.ray.direction = eta * dir_in + (eta * cos_in - cos_out) * normal;
+//            }
+//            out.albedo         = record.material->info.colour;
+//            out.reflectiveness = record.material->info.reflectiveness;
+//
+//            out.ray.origin = record.intersection_point + record.normal * 0.001f;
+//            out.ray.direction =
+//              glm::refract(ray.direction, record.normal, record.material->info.ior);
+            auto cos_hemp_dir = cr::sampling::hemp_rand();
+            if (glm::dot(cos_hemp_dir, record.normal) < 0.0f) cos_hemp_dir *= -1.f;
             out.ray.origin    = record.intersection_point + record.normal * 0.0001f;
-            out.ray.direction = glm::reflect(ray.direction, record.normal);
+            out.ray.direction = glm::normalize(cos_hemp_dir);
 
+            out.reflectiveness = std::fmaxf(0.f, glm::dot(record.normal, out.ray.direction));
+            out.albedo = record.normal * .5f + .5f;
+            break;
+        }
+        case cr::material::metal:
+        {
+            auto cos_hemp_dir = cr::sampling::hemp_rand();
+            if (glm::dot(cos_hemp_dir, record.normal) < 0.0f) cos_hemp_dir *= -1.f;
+
+            const auto out_direction = glm::normalize(cos_hemp_dir);
+
+            /*
+             * GGX BRDF
+             *
+             *          D(h,a) * G(v,l,a) * F(v,h,f0)
+             * f(v,l) = -----------------------------
+             *               4(n * v) * (n * l)
+             */
+
+            const auto H     = glm::normalize(out_direction + -ray.direction);
+            const auto NdotH = glm::dot(record.normal, H);
+            const auto LdotH = glm::dot(out_direction, H);
+            const auto NdotV = glm::dot(record.normal, -ray.direction);
+            const auto NdotL = glm::max(0.0f, glm::dot(record.normal, out_direction));
+
+            const auto D =
+              cr::sampling::cook_torrence::specular_d(NdotH, record.material->info.roughness);
+
+            const auto G = cr::sampling::cook_torrence::specular_g(
+              NdotV,
+              NdotL,
+              record.material->info.roughness);
+
+            const auto F =
+              cr::sampling::cook_torrence::specular_f(LdotH, record.material->info.ior);
+
+            const auto Fr = (D * G * F) / (4 * glm::max(0.0001f, NdotV));
+
+            const auto Fd = out.albedo * (1.0f / 3.1415f);
+
+            const auto out_colour = (Fd) + (Fr * record.material->info.reflectiveness);
+            out.albedo            = out_colour;
+
+            out.ray.origin     = record.intersection_point + record.normal * 0.0001f;
+            out.ray.origin     = record.intersection_point + record.normal * 0.0001f;
+            out.ray.direction  = glm::reflect(ray.direction, record.normal);
             out.reflectiveness = 0.5;
             break;
+        }
+
         case cr::material::smooth:
+        {
             auto cos_hemp_dir = cr::sampling::hemp_rand();
             if (glm::dot(cos_hemp_dir, record.normal) < 0.0f) cos_hemp_dir *= -1.f;
 
@@ -44,6 +139,7 @@ namespace
 
             out.reflectiveness = std::fmaxf(0.f, glm::dot(record.normal, out.ray.direction));
             break;
+        }
         }
 
         return out;
@@ -57,9 +153,9 @@ cr::renderer::renderer(
   const uint64_t                    bounces,
   std::unique_ptr<cr::thread_pool> *pool,
   std::unique_ptr<cr::scene> *      scene)
-    : _camera(scene->get()->registry()->camera()), _buffer(res_x, res_y), _normals(res_x, res_y), _albedo(res_x, res_y), _res_x(res_x),
-      _res_y(res_y), _max_bounces(bounces), _thread_pool(pool), _scene(scene),
-      _raw_buffer(res_x * res_y * 3)
+    : _camera(scene->get()->registry()->camera()), _buffer(res_x, res_y), _normals(res_x, res_y),
+      _albedo(res_x, res_y), _res_x(res_x), _res_y(res_y), _max_bounces(bounces),
+      _thread_pool(pool), _scene(scene), _raw_buffer(res_x * res_y * 3)
 {
     _management_thread = std::thread([this]() {
         while (_run_management)
@@ -94,11 +190,10 @@ cr::renderer::~renderer()
 void cr::renderer::start()
 {
     _buffer.clear();
-    for (auto i = 0; i < _res_x * _res_y * 3; i++)
-        _raw_buffer[i] = 0.0f;
+    for (auto i = 0; i < _res_x * _res_y * 3; i++) _raw_buffer[i] = 0.0f;
     _current_sample = 0;
 
-    auto guard      = std::unique_lock(_start_mutex);
+    auto guard = std::unique_lock(_start_mutex);
     _start_cond_var.notify_all();
 }
 
@@ -126,8 +221,8 @@ void cr::renderer::set_resolution(int x, int y)
 
     _aspect_correction = static_cast<float>(_res_x) / static_cast<float>(_res_y);
 
-    _buffer = cr::image(x, y);
-    _raw_buffer = std::vector<float>(x * y * 3);
+    _buffer         = cr::image(x, y);
+    _raw_buffer     = std::vector<float>(x * y * 3);
     _current_sample = 0;
 }
 
@@ -214,8 +309,17 @@ void cr::renderer::_sample_pixel(uint64_t x, uint64_t y)
     _raw_buffer[base_index + 1] += final.y;
     _raw_buffer[base_index + 2] += final.z;
 
-    _buffer.set(x, y, glm::vec3(
-      glm::pow(glm::clamp(_raw_buffer[base_index + 0] / float(_current_sample + 1), 0.0f, 1.0f), 1.f / 2.2f),
-      glm::pow(glm::clamp(_raw_buffer[base_index + 1] / float(_current_sample + 1), 0.0f, 1.0f), 1.f / 2.2f),
-      glm::pow(glm::clamp(_raw_buffer[base_index + 2] / float(_current_sample + 1), 0.0f, 1.0f), 1.f / 2.2f)));
+    _buffer.set(
+      x,
+      y,
+      glm::vec3(
+        glm::pow(
+          glm::clamp(_raw_buffer[base_index + 0] / float(_current_sample + 1), 0.0f, 1.0f),
+          1.f / 2.2f),
+        glm::pow(
+          glm::clamp(_raw_buffer[base_index + 1] / float(_current_sample + 1), 0.0f, 1.0f),
+          1.f / 2.2f),
+        glm::pow(
+          glm::clamp(_raw_buffer[base_index + 2] / float(_current_sample + 1), 0.0f, 1.0f),
+          1.f / 2.2f)));
 }
