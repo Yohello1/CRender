@@ -10,7 +10,7 @@
 #include <util/algorithm.h>
 #include <stb/stbi_image_write.h>
 #include <stb/stb_image.h>
-#include "display.h"
+#include <tracy/Tracy.hpp>
 
 namespace cr::ui
 {
@@ -22,7 +22,7 @@ namespace cr::ui
     };
     [[nodiscard]] inline init_ctx init()
     {
-        auto dock_flags   = ImGuiDockNodeFlags_PassthruCentralNode;
+        ZoneScopedN("UI Initialize") auto dock_flags = ImGuiDockNodeFlags_PassthruCentralNode;
         auto window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
         auto viewport     = ImGui::GetMainViewport();
 
@@ -54,6 +54,7 @@ namespace cr::ui
       const std::string &bottom_left,
       const std::string &right_panel)
     {
+        ZoneScopedN("Dock Initialization");
         auto dockspace_id = ImGui::GetID("DockSpace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ctx.dock_flags);
 
@@ -111,6 +112,7 @@ namespace cr::ui
       GLuint              compute_program,
       bool                in_draft_mode)
     {
+        ZoneScopedN("Scene Preview");
         ImGui::Begin("Scene Preview");
         auto window_size = ImGui::GetContentRegionAvail();
 
@@ -176,7 +178,8 @@ namespace cr::ui
             }
             else
             {
-                const auto current_progress = renderer->current_progress();
+                ZoneScopedN("CPU to GPU Scene Texture") const auto current_progress =
+                  renderer->current_progress();
                 // Upload rendered scene to GPU
                 glUseProgram(compute_program);
                 glBindTexture(GL_TEXTURE_2D, scene_texture);
@@ -205,8 +208,12 @@ namespace cr::ui
         ImGui::End();
     }
 
-    inline void setting_render(cr::renderer *renderer, cr::draft_renderer *draft_renderer, std::unique_ptr<cr::thread_pool> &pool)
+    inline void setting_render(
+      cr::renderer *                    renderer,
+      cr::draft_renderer *              draft_renderer,
+      std::unique_ptr<cr::thread_pool> &pool)
     {
+        ZoneScopedN("Setting Render");
         static auto resolution   = glm::ivec2();
         static auto bounces      = int(5);
         static auto thread_count = static_cast<int>(std::thread::hardware_concurrency());
@@ -235,6 +242,7 @@ namespace cr::ui
 
         if (ImGui::Button("Update"))
         {
+            ZoneScopedN("Update Renderer");
             renderer->update([renderer, draft_renderer, &pool]() {
                 renderer->set_max_bounces(bounces);
                 renderer->set_resolution(resolution.x, resolution.y);
@@ -278,7 +286,7 @@ namespace cr::ui
 
     inline void setting_export(std::unique_ptr<cr::renderer> *renderer)
     {
-        static auto file_string = std::array<char, 32>();
+        ZoneScopedN("Setting Export") static auto file_string = std::array<char, 32>();
         ImGui::InputTextWithHint("File Name", "Max 32 chars", file_string.data(), 32);
 
         static const auto export_types = std::array<std::string, 3>({ "PNG", "JPG", "EXR" });
@@ -303,6 +311,7 @@ namespace cr::ui
 
         if (ImGui::Button("Save"))
         {
+            ZoneScopedN("Save Buffer");
             cr::logger::info("Starting to export image [{}]", file_string.data());
             auto timer = cr::timer();
 
@@ -315,6 +324,7 @@ namespace cr::ui
 
     inline void setting_materials(cr::renderer *renderer, cr::scene *scene)
     {
+        ZoneScopedN("Setting Materials");
         const auto &models = scene->models();
 
         if (models.size() > 0)
@@ -366,10 +376,13 @@ namespace cr::ui
             static auto found_material_indices = std::vector<size_t>();
 
             if (changed || first_time)
+            {
+                ZoneScopedN("Search materials");
                 found_material_indices = cr::algorithm::find_string_matches<cr::material>(
                   std::string(material_search_string.data()),
                   materials,
                   [](const cr::material &material) { return material.info.name; });
+            }
 
             for (const auto index : found_material_indices)
             {
@@ -463,6 +476,7 @@ namespace cr::ui
       std::unique_ptr<cr::scene> *   scene,
       bool                           in_draft_mode)
     {
+        ZoneScopedN("Setting Asset Loader");
         static std::string current_directory;
         static std::string current_model;
         bool               throw_away = false;
@@ -492,6 +506,7 @@ namespace cr::ui
 
         if (current_model != std::filesystem::path() && ImGui::Button("Load Model"))
         {
+            ZoneScopedN("Load Model");
             cr::logger::info("Starting to load model [{}]", current_model);
             auto timer = cr::timer();
             // Load model in
@@ -541,6 +556,7 @@ namespace cr::ui
 
         if (!current_skybox.empty() && ImGui::Button("Load Skybox"))
         {
+            ZoneScopedN("Load Skybox");
             auto timer = cr::timer();
             // Load skybox in
             cr::logger::info("Started to load skybox [{}]", current_skybox.stem().string());
@@ -570,12 +586,15 @@ namespace cr::ui
 
     inline void setting_stats(cr::renderer *renderer)
     {
+        ZoneScopedN("Setting Stats");
         ImGui::Indent(4.f);
 
         const auto stats = renderer->current_stats();
 
         ImGui::Text("%s", fmt::format("Rays per second: [{}]", stats.rays_per_second).c_str());
-        ImGui::Text("%s", fmt::format("Samples per second: [{}]", stats.samples_per_second).c_str());
+        ImGui::Text(
+          "%s",
+          fmt::format("Samples per second: [{}]", stats.samples_per_second).c_str());
         ImGui::Text("%s", fmt::format("Total Rays Fired: [{}]", stats.total_rays).c_str());
         ImGui::Text("%s", fmt::format("Running Time: [{}]", stats.running_time).c_str());
 
@@ -585,6 +604,7 @@ namespace cr::ui
     inline std::optional<cr::ImGuiThemes::theme> new_theme;
     inline void                                  setting_style()
     {
+        ZoneScopedN("Setting Style");
         ImGui::Separator();
         ImGui::Indent(4.0f);
         ImGui::Text("Custom Theme (?)");
@@ -622,12 +642,13 @@ namespace cr::ui
     }
 
     inline void settings(
-      std::unique_ptr<cr::renderer> *   renderer,
-      std::unique_ptr<cr::draft_renderer> *   draft_renderer,
-      std::unique_ptr<cr::scene> *      scene,
-      std::unique_ptr<cr::thread_pool> *pool,
-      bool                              draft_mode)
+      std::unique_ptr<cr::renderer> *      renderer,
+      std::unique_ptr<cr::draft_renderer> *draft_renderer,
+      std::unique_ptr<cr::scene> *         scene,
+      std::unique_ptr<cr::thread_pool> *   pool,
+      bool                                 draft_mode)
     {
+        ZoneScopedN("Setting");
         ImGui::Begin("Misc");
 
         // List all of the different settings
@@ -667,6 +688,7 @@ namespace cr::ui
 
     inline void console(const std::vector<std::string> &lines = {})
     {
+        ZoneScopedN("UI Console");
         ImGui::Begin("Console");
 
         ImGui::Text("Console Output");

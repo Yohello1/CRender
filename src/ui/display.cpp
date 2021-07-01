@@ -8,6 +8,7 @@
 
 cr::display::display()
 {
+    ZoneScopedN("Display Construction");
     glfwSetErrorCallback([](int error, const char *description) {
         cr::logger::error("GLFW Failed with error [{}], description [{}]", error, description);
     });
@@ -155,6 +156,7 @@ void cr::display::start(
     bool draft_mode_changed = false;
     while (!glfwWindowShouldClose(_glfw_window))
     {
+        ZoneScopedN("Display Loop");
         if (ui::new_theme.has_value())
         {
             switch (ui::new_theme.value())

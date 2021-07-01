@@ -13,6 +13,7 @@ namespace
 
 cr::registry::registry()
 {
+    ZoneScopedN("Prepare Registry");
     entities.prepare<cr::entity::transforms>();
     entities.prepare<cr::entity::model_materials>();
     entities.prepare<cr::entity::model_data>();
@@ -31,6 +32,7 @@ cr::registry::registry()
 
 cr::registry::registered_model cr::registry::register_model(const cr::asset_loader::model_data &data)
 {
+    ZoneScopedN("Register Model");
     // Expand the data we have have from the indices. Why?
     // Good question - I'm waiting on Intels Embree team to reply to my github issue
     // https://github.com/embree/embree/issues/325
@@ -104,6 +106,7 @@ cr::registry::registered_model cr::registry::register_model(const cr::asset_load
 
 cr::raster_objects cr::registry::_get_meshes_by_material(const cr::asset_loader::model_data &data)
 {
+    ZoneScopedN("Material sort pass");
     auto objects = std::vector<cr::temporary_mesh>(data.materials.size());
 
     for (auto i = 0; i < objects.size(); i++)

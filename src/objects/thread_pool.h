@@ -10,6 +10,7 @@
 #include <queue>
 
 #include <fmt/core.h>
+#include <tracy/Tracy.hpp>
 
 namespace cr
 {

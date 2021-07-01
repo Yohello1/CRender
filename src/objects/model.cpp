@@ -7,6 +7,7 @@ namespace
       const cr::entity::model_geometry & geometry,
       const cr::entity::model_materials &materials)
     {
+        ZoneScopedN("Intersect Model Mesh");
         auto ctx = RTCIntersectContext();
         rtcInitIntersectContext(&ctx);
         auto ray_hit = RTCRayHit();
@@ -103,6 +104,7 @@ cr::ray::intersection_record cr::model::intersect(
   const cr::entity::model_geometry & geometry,
   const cr::entity::model_materials &materials)
 {
+    ZoneScopedN("Model Intersection");
     auto intersection = cr::ray::intersection_record();
 
     for (const auto &transform : transforms.data)

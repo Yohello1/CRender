@@ -18,6 +18,7 @@ add_executable(CRender src/main.cpp
         src/glad/glad.h
         src/glad/glad.c
         ${ImGuiSources}
+        src/tracy/TracyClient.cpp
         src/imgui/imnodes.h
         src/imgui/imnodes.cpp
         src/ui/display.cpp
@@ -52,11 +53,21 @@ add_executable(CRender src/main.cpp
         src/render/entities/entity_type.h
         src/render/entities/components.h
         src/render/entities/registry.cpp
-        src/render/entities/registry.h src/render/draft/draft_renderer.cpp src/render/draft/draft_renderer.h src/render/mesh.h src/render/timer.cpp src/render/timer.h src/util/logger.h src/util/logger.cpp src/util/numbers.h src/render/brdf.h)
+        src/render/entities/registry.h
+        src/render/draft/draft_renderer.cpp
+        src/render/draft/draft_renderer.h
+        src/render/mesh.h src/render/timer.cpp
+        src/render/timer.h src/util/logger.h
+        src/util/logger.cpp src/util/numbers.h
+        src/render/brdf.h)
 
 target_include_directories(CRender PRIVATE src)
 target_include_directories(CRender PRIVATE external)
 
 target_link_libraries(CRender glfw fmt glm embree)
 
-target_compile_definitions(CRender PUBLIC -DGLFW_INCLUDE_NONE -D__STDC_CONSTANT_MACROS)
+target_compile_definitions(CRender PUBLIC
+        -DGLFW_INCLUDE_NONE
+        -D__STDC_CONSTANT_MACROS
+        -DTRACY_ENABLE
+        )

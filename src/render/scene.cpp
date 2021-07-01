@@ -66,6 +66,7 @@ glm::vec3 cr::scene::sample_skybox(float x, float y) const noexcept
 
 cr::ray::intersection_record cr::scene::cast_ray(const cr::ray ray)
 {
+    ZoneScopedN("Cast Ray");
     auto intersection = cr::ray::intersection_record();
 
     const auto &view =

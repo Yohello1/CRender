@@ -2,6 +2,7 @@
 
 cr::thread_pool::thread_pool(uint32_t thread_count)
 {
+    ZoneScopedN("Thread Pool Creation");
     _threads.reserve(thread_count);
     for (auto i = 0; i < thread_count; i++)
     {
@@ -25,6 +26,7 @@ cr::thread_pool::thread_pool(uint32_t thread_count)
 
 cr::thread_pool::~thread_pool()
 {
+    ZoneScopedN("Thread Pool Destruction");
     _should_work = false;
     {
         std::lock_guard lock(_queue_lock);

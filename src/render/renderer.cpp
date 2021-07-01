@@ -62,10 +62,12 @@ cr::renderer::renderer(
     _management_thread = std::thread([this]() {
         while (_run_management)
         {
+            ZoneScopedN("Main Loop");
             const auto tasks = _get_tasks();
 
             if (!tasks.empty() && (_current_sample < _spp_target || _spp_target == 0))
             {
+                ZoneScopedN("Task submit and execution");
                 _thread_pool->get()->wait_on_tasks(tasks);
                 _current_sample++;
             }
@@ -176,6 +178,7 @@ cr::image *cr::renderer::current_albedos() noexcept
 
 std::vector<std::function<void()>> cr::renderer::_get_tasks()
 {
+    ZoneScopedN("Get Tasks");
     auto tasks = std::vector<std::function<void()>>();
 
     if (_pause) return tasks;
@@ -184,6 +187,7 @@ std::vector<std::function<void()>> cr::renderer::_get_tasks()
 
     for (auto y = 0; y < _res_y; y++)
         tasks.emplace_back([this, y] {
+            ZoneScopedN("Scanline Task");
             auto fired_rays = size_t(0);
             for (auto x = 0; x < _res_x; x++) this->_sample_pixel(x, y, fired_rays);
             _total_rays += fired_rays;
@@ -194,6 +198,7 @@ std::vector<std::function<void()>> cr::renderer::_get_tasks()
 
 void cr::renderer::_sample_pixel(uint64_t x, uint64_t y, size_t &fired_rays)
 {
+    ZoneScopedN("Sample Pixel");
     auto ray = _camera->get_ray(
       ((static_cast<float>(x) + ::randf()) / _res_x) * _aspect_correction,
       (static_cast<float>(y) + ::randf()) / _res_y);

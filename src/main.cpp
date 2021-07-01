@@ -3,7 +3,8 @@
 int main()
 {
     const auto thread_count = std::thread::hardware_concurrency();
-    auto thread_pool = std::make_unique<cr::thread_pool>(thread_count == 0 ? 1 : thread_count / 4);
+//    auto thread_pool = std::make_unique<cr::thread_pool>(thread_count == 0 ? 1 : thread_count / 4);
+    auto thread_pool = std::make_unique<cr::thread_pool>(1);
 
     auto scene = std::make_unique<cr::scene>();
 

@@ -20,6 +20,7 @@
 #include <util/logger.h>
 
 #include <glad/glad.h>
+#include <tracy/Tracy.hpp>
 
 namespace cr
 {

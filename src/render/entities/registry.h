@@ -9,6 +9,7 @@
 #include <objects/model.h>
 #include <util/asset_loader.h>
 #include <variant>
+#include <tracy/Tracy.hpp>
 
 namespace cr
 {

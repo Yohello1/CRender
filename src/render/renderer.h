@@ -19,6 +19,8 @@
 #include <util/sampling.h>
 #include <render/timer.h>
 
+#include <tracy/Tracy.hpp>
+
 namespace cr
 {
     class renderer

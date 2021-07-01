@@ -16,6 +16,7 @@
 #include <util/asset_loader.h>
 #include <util/exception.h>
 #include <util/logger.h>
+#include <tracy/Tracy.hpp>
 
 namespace cr
 {

@@ -24,6 +24,7 @@ namespace
 
     [[nodiscard]] cr::asset_loader::picture_data load_exr(const std::filesystem::path &path)
     {
+        ZoneScopedN("Load EXR");
         float *     raw_data;
         auto        dimension = glm::ivec2();
         const char *err       = nullptr;
@@ -46,6 +47,7 @@ namespace
 
     [[nodiscard]] cr::asset_loader::picture_data load_jpg_png(const std::filesystem::path &path)
     {
+        ZoneScopedN("Load JPG / PNG");
         auto image_dimensions = glm::ivec3();
         auto data             = stbi_load(
           path.string().c_str(),
@@ -66,6 +68,7 @@ namespace
 
     void export_png(const cr::image &buffer, const std::string &path)
     {
+        ZoneScopedN("Export PNG");
         auto data = std::vector<uint8_t>(buffer.width() * buffer.height() * 4);
         for (auto i = 0; i < data.size(); i++)
             data[i] = buffer.data()[i] * 255.f;
@@ -81,6 +84,7 @@ namespace
 
     void export_jpg(const cr::image &buffer, const std::string &path)
     {
+        ZoneScopedN("Export JPG");
         auto data = std::vector<uint8_t>(buffer.width() * buffer.height() * 4);
         for (auto i = 0; i < data.size(); i++) data[i] = buffer.data()[i] * 255.f;
 
@@ -89,6 +93,7 @@ namespace
 
     void export_exr(const cr::image &buffer, const std::string &path)
     {
+        ZoneScopedN("Export EXR");
         EXRHeader header;
         InitEXRHeader(&header);
 
@@ -153,6 +158,7 @@ namespace
 cr::asset_loader::model_data
   cr::asset_loader::load_model(const std::string &file, const std::string &folder)
 {
+    ZoneScopedN("Load Model");
     auto model_data = cr::asset_loader::model_data();
     model_data.name = std::filesystem::path(file).filename().stem().string();
 
@@ -269,6 +275,7 @@ cr::asset_loader::model_data
 
 cr::asset_loader::picture_data cr::asset_loader::load_picture(const std::string &file)
 {
+    ZoneScopedN("Load Picture");
     auto path = std::filesystem::path(file);
 
     auto extension = path.extension().string();
@@ -313,6 +320,7 @@ void cr::asset_loader::export_framebuffer(
   const std::string &          path,
   cr::asset_loader::image_type type)
 {
+    ZoneScopedN("Export Framebuffer");
     auto extension = std::string(
       type == image_type::JPG     ? ".jpg"
         : type == image_type::PNG ? ".png"

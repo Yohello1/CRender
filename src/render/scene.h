@@ -14,6 +14,7 @@
 #include <objects/model.h>
 #include <objects/image.h>
 #include <util/exception.h>
+#include <tracy/Tracy.hpp>
 
 namespace cr
 {

@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 #include <render/material/material.h>
 #include <util/exception.h>
+#include <tracy/Tracy.hpp>
 #include <regex>
 
 namespace cr::asset_loader

@@ -6,6 +6,7 @@ cr::draft_renderer::draft_renderer(
   std::unique_ptr<cr::scene> *scene)
     : _res_x(res_x), _res_y(res_y), _scene(scene)
 {
+    ZoneScopedN("Draft Renderer Creation");
     glGenFramebuffers(1, &_framebuffer);
 
     glGenTextures(1, &_texture);
@@ -102,6 +103,7 @@ GLuint cr::draft_renderer::rendered_texture() const
 
 void cr::draft_renderer::render()
 {
+    ZoneScopedN("Render Draft Mode");
     glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer);
     glEnable(GL_DEPTH_TEST);
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -127,6 +129,7 @@ void cr::draft_renderer::render()
 
 void cr::draft_renderer::_update_uniforms()
 {
+    ZoneScopedN("Update Uniforms");
     const auto translation_location = glGetUniformLocation(_program_handle, "mvp");
 
     const auto camera_location = glGetUniformLocation(_program_handle, "camera_pos");
@@ -158,6 +161,7 @@ void cr::draft_renderer::set_resolution(uint64_t res_x, uint64_t res_y)
 
 void cr::draft_renderer::_setup_required()
 {
+    ZoneScopedN("Setup OpenGL Framebuffer");
     glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer);
 
     glBindTexture(GL_TEXTURE_2D, _texture);
