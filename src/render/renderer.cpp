@@ -57,7 +57,7 @@ cr::renderer::renderer(
   std::unique_ptr<cr::scene> *      scene)
     : _camera(scene->get()->registry()->camera()), _buffer(res_x, res_y), _normals(res_x, res_y),
       _albedo(res_x, res_y), _res_x(res_x), _res_y(res_y), _max_bounces(bounces),
-      _thread_pool(pool), _scene(scene), _raw_buffer(res_x * res_y * 3)
+      _thread_pool(pool), _scene(scene), _raw_buffer(res_x, res_y)
 {
     _management_thread = std::thread([this]() {
         while (_run_management)
@@ -106,9 +106,9 @@ bool cr::renderer::start()
         _pause = false;
         _buffer.clear();
         _timer.reset();
-        for (auto i = 0; i < _res_x * _res_y * 3; i++) _raw_buffer[i] = 0.0f;
+        _raw_buffer.clear();
         _current_sample = 0;
-        _total_rays = 0;
+        _total_rays     = 0;
 
         auto guard = std::unique_lock(_start_mutex);
         _start_cond_var.notify_all();
@@ -146,8 +146,8 @@ void cr::renderer::set_resolution(int x, int y)
 
     _aspect_correction = static_cast<float>(_res_x) / _res_y;
 
-    _buffer         = cr::image(x, y);
-    _raw_buffer     = std::vector<float>(x * y * 3);
+    _buffer         = cr::image<uint8_t>(x, y);
+    _raw_buffer     = cr::image<uint32_t>(x, y);
     _current_sample = 0;
 }
 
@@ -161,17 +161,17 @@ void cr::renderer::set_target_spp(uint64_t target)
     _spp_target = target;
 }
 
-cr::image *cr::renderer::current_progress() noexcept
+cr::image<std::uint8_t> *cr::renderer::current_progress() noexcept
 {
     return &_buffer;
 }
 
-cr::image *cr::renderer::current_normals() noexcept
+cr::image<std::uint8_t> *cr::renderer::current_normals() noexcept
 {
     return &_normals;
 }
 
-cr::image *cr::renderer::current_albedos() noexcept
+cr::image<std::uint8_t> *cr::renderer::current_albedos() noexcept
 {
     return &_albedo;
 }
@@ -237,24 +237,18 @@ void cr::renderer::_sample_pixel(uint64_t x, uint64_t y, size_t &fired_rays)
     // flip Y
     y = _res_y - 1 - y;
 
-    const auto base_index = (x + y * _res_x) * 3;
-    _raw_buffer[base_index + 0] += final.x;
-    _raw_buffer[base_index + 1] += final.y;
-    _raw_buffer[base_index + 2] += final.z;
+    const auto previous = _raw_buffer.get(x, y);
+    const auto added    = previous + glm::vec4(final, 1.0f);
+
+    _raw_buffer.set(x, y, added);
+
+    const auto tonemapped = glm::clamp(added / static_cast<float>(_current_sample + 1), 0.0f, 1.0f);
 
     _buffer.set(
       x,
       y,
-      glm::vec3(
-        glm::pow(
-          glm::clamp(_raw_buffer[base_index + 0] / float(_current_sample + 1), 0.0f, 1.0f),
-          1.f / 2.2f),
-        glm::pow(
-          glm::clamp(_raw_buffer[base_index + 1] / float(_current_sample + 1), 0.0f, 1.0f),
-          1.f / 2.2f),
-        glm::pow(
-          glm::clamp(_raw_buffer[base_index + 2] / float(_current_sample + 1), 0.0f, 1.0f),
-          1.f / 2.2f)));
+      glm::vec3(glm::pow(tonemapped.x, 1.0f / 2.2), glm::pow(tonemapped.y, 1.0f / 2.2),
+                  glm::pow(tonemapped.z, 1.0f / 2.2)));
 }
 
 glm::ivec2 cr::renderer::current_resolution() const noexcept

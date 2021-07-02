@@ -33,7 +33,7 @@ namespace cr
 
         void add_model(const cr::asset_loader::model_data &model);
 
-        void set_skybox(cr::image &&skybox);
+        void set_skybox(cr::image<std::uint32_t> &&skybox);
 
         void set_skybox_rotation(const glm::vec2 &rotation);
 
@@ -50,7 +50,7 @@ namespace cr
         [[nodiscard]] const std::vector<mesh_index> &models() const noexcept;
 
     private:
-        std::optional<cr::image> _skybox;
+        std::optional<cr::image<uint32_t>> _skybox;
 
         std::vector<cr::mesh> _meshes;
 

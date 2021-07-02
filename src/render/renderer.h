@@ -61,11 +61,11 @@ namespace cr
 
         [[nodiscard]] glm::ivec2 current_resolution() const noexcept;
 
-        [[nodiscard]] cr::image *current_progress() noexcept;
+        [[nodiscard]] cr::image<std::uint8_t> *current_progress() noexcept;
 
-        [[nodiscard]] cr::image *current_normals() noexcept;
+        [[nodiscard]] cr::image<std::uint8_t> *current_normals() noexcept;
 
-        [[nodiscard]] cr::image *current_albedos() noexcept;
+        [[nodiscard]] cr::image<std::uint8_t> *current_albedos() noexcept;
 
     private:
         [[nodiscard]] std::vector<std::function<void()>> _get_tasks();
@@ -82,12 +82,11 @@ namespace cr
         std::unique_ptr<cr::thread_pool> *_thread_pool;
 
         std::unique_ptr<cr::scene> *_scene;
-        std::vector<float>          _raw_buffer;
 
-        cr::image _buffer;
-
-        cr::image _normals;
-        cr::image _albedo;
+        cr::image<std::uint32_t> _raw_buffer;
+        cr::image<std::uint8_t> _buffer;
+        cr::image<std::uint8_t> _normals;
+        cr::image<std::uint8_t> _albedo;
 
         std::atomic<bool>     _run_management = true;
         std::atomic<bool>     _pause          = false;

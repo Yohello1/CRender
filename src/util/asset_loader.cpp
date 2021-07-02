@@ -22,7 +22,7 @@ namespace
           0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
     }
 
-    [[nodiscard]] cr::asset_loader::picture_data load_exr(const std::filesystem::path &path)
+    [[nodiscard]] cr::image<uint32_t> load_exr(const std::filesystem::path &path)
     {
         ZoneScopedN("Load EXR");
         float *     raw_data;
@@ -35,17 +35,17 @@ namespace
             cr::exit(
               fmt::format("There was an error loading EXR image {}", path.filename().string()));
 
-        auto data = std::vector<float>(dimension.x * dimension.y * 4);
+        auto data = std::make_unique<float[]>(dimension.x * dimension.y * 4);
 
-        std::memcpy(data.data(), raw_data, dimension.x * dimension.y * 4 * sizeof(float));
+        std::memcpy(data.get(), raw_data, dimension.x * dimension.y * 4 * sizeof(float));
 
         // This is a C api im sorry
         free(raw_data);
 
-        return { dimension, std::move(data) };
+        return cr::image<uint32_t>(data, dimension.x, dimension.y);
     }
 
-    [[nodiscard]] cr::asset_loader::picture_data load_jpg_png(const std::filesystem::path &path)
+    [[nodiscard]] cr::image<uint32_t> load_jpg_png(const std::filesystem::path &path)
     {
         ZoneScopedN("Load JPG / PNG");
         auto image_dimensions = glm::ivec3();
@@ -56,22 +56,19 @@ namespace
           &image_dimensions.z,
           4);
 
-        auto output = std::vector<float>(image_dimensions.x * image_dimensions.y * 4);
+        auto output = std::make_unique<float[]>(image_dimensions.x * image_dimensions.y * 4);
 
         for (auto i = 0; i < image_dimensions.x * image_dimensions.y * 4; i++)
             output[i] = data[i] / 255.f;
 
-        auto dim = glm::vec2(image_dimensions.x, image_dimensions.y);
-
-        return { dim, std::move(output) };
+        return cr::image<uint32_t>(output, image_dimensions.x, image_dimensions.y);
     }
 
-    void export_png(const cr::image &buffer, const std::string &path)
+    void export_png(const cr::image<uint32_t> &buffer, const std::string &path)
     {
         ZoneScopedN("Export PNG");
         auto data = std::vector<uint8_t>(buffer.width() * buffer.height() * 4);
-        for (auto i = 0; i < data.size(); i++)
-            data[i] = buffer.data()[i] * 255.f;
+        for (auto i = 0; i < data.size(); i++) data[i] = buffer.at(i) * 255.f;
 
         stbi_write_png(
           path.c_str(),
@@ -82,16 +79,16 @@ namespace
           buffer.width() * 4);
     }
 
-    void export_jpg(const cr::image &buffer, const std::string &path)
+    void export_jpg(const cr::image<uint32_t> &buffer, const std::string &path)
     {
         ZoneScopedN("Export JPG");
         auto data = std::vector<uint8_t>(buffer.width() * buffer.height() * 4);
-        for (auto i = 0; i < data.size(); i++) data[i] = buffer.data()[i] * 255.f;
+        for (auto i = 0; i < data.size(); i++) data[i] = buffer.at(i) * 255.f;
 
         stbi_write_jpg(path.c_str(), buffer.width(), buffer.height(), 4, data.data(), 100);
     }
 
-    void export_exr(const cr::image &buffer, const std::string &path)
+    void export_exr(const cr::image<uint32_t> &buffer, const std::string &path)
     {
         ZoneScopedN("Export EXR");
         EXRHeader header;
@@ -224,7 +221,7 @@ cr::asset_loader::model_data
               4);
             stbi_set_flip_vertically_on_load(false);
 
-            auto texture_image = cr::image(image_dimensions.x, image_dimensions.y);
+            auto texture_image = cr::image<uint8_t>(image_dimensions.x, image_dimensions.y);
 
             for (auto x = 0; x < image_dimensions.x; x++)
                 for (auto y = 0; y < image_dimensions.y; y++)
@@ -273,7 +270,7 @@ cr::asset_loader::model_data
     return model_data;
 }
 
-cr::asset_loader::picture_data cr::asset_loader::load_picture(const std::string &file)
+cr::image<uint32_t> cr::asset_loader::load_picture(const std::string &file)
 {
     ZoneScopedN("Load Picture");
     auto path = std::filesystem::path(file);
@@ -316,9 +313,9 @@ std::optional<std::string>
 }
 
 void cr::asset_loader::export_framebuffer(
-  const cr::image &            buffer,
-  const std::string &          path,
-  cr::asset_loader::image_type type)
+  const cr::image<std::uint32_t> &buffer,
+  const std::string &             path,
+  cr::asset_loader::image_type    type)
 {
     ZoneScopedN("Export Framebuffer");
     auto extension = std::string(

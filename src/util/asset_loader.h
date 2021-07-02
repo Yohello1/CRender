@@ -31,13 +31,7 @@ namespace cr::asset_loader
 
     [[nodiscard]] model_data load_model(const std::string &file, const std::string &folder);
 
-    struct picture_data
-    {
-        glm::ivec2         res;
-        std::vector<float> colour;
-    };
-
-    [[nodiscard]] picture_data load_picture(const std::string &file);
+    [[nodiscard]] cr::image<uint32_t> load_picture(const std::string &file);
     [[nodiscard]] std::optional<std::string>
       valid_directory(const std::filesystem::directory_entry &directory);
 
@@ -50,5 +44,5 @@ namespace cr::asset_loader
         JPG,
         EXR
     };
-    void export_framebuffer(const cr::image &buffer, const std::string &path, image_type type);
+    void export_framebuffer(const cr::image<std::uint32_t> &buffer, const std::string &path, image_type type);
 }    // namespace cr::asset_loader

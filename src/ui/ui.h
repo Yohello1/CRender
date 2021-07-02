@@ -317,7 +317,8 @@ namespace cr::ui
 
             const auto data = renderer->get()->current_progress();
 
-            cr::asset_loader::export_framebuffer(*data, file_string.data(), selected_type);
+            const auto converted_data = data->to_accuracy<std::uint32_t>();
+            cr::asset_loader::export_framebuffer(converted_data, file_string.data(), selected_type);
             cr::logger::info("Finished exporting image in [{}s]", timer.time_since_start());
         }
     }
@@ -562,15 +563,14 @@ namespace cr::ui
             cr::logger::info("Started to load skybox [{}]", current_skybox.stem().string());
             renderer->get()->update([&scene, current_skybox = current_skybox, &timer] {
                 auto image  = cr::asset_loader::load_picture(current_skybox.string());
-                auto skybox = cr::image(image.colour, image.res.x, image.res.y);
 
-                scene->get()->set_skybox(std::move(skybox));
+                scene->get()->set_skybox(std::move(image));
 
                 cr::logger::info("Finished loading skybox in [{}s]", timer.time_since_start());
                 cr::logger::info(
                   "-- Skybox Stats\n\tResolution:\n\t\tX: [{}]\n\t\tY: [{}]",
-                  image.res.x,
-                  image.res.y);
+                  image.width(),
+                  image.height());
             });
         }
 
