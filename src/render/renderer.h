@@ -16,6 +16,7 @@
 #include <render/scene.h>
 #include <render/brdf.h>
 #include <objects/thread_pool.h>
+#include <objects/octree.h>
 #include <util/sampling.h>
 #include <render/timer.h>
 
@@ -66,6 +67,8 @@ namespace cr
         [[nodiscard]] cr::image *current_albedos() noexcept;
 
         [[nodiscard]] cr::image *current_depths() noexcept;
+
+        cr::octree octree;
 
     private:
         [[nodiscard]] std::vector<std::function<void()>> _get_tasks();
