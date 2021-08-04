@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <cstdint>
@@ -41,3 +42,4 @@ namespace cr
         std::vector<std::thread>          _threads;
     };
 }    // namespace cr
+

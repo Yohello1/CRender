@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 3.16)
 set(CMAKE_CXX_STANDARD 17)
 set_property(GLOBAL PROPERTY ALLOW_DUPLICATE_CUSTOM_TARGETS 1)
@@ -78,3 +79,4 @@ target_include_directories(CRender PRIVATE external)
 target_link_libraries(CRender glfw fmt glm embree OpenImageDenoise)
 
 target_compile_definitions(CRender PUBLIC -DGLFW_INCLUDE_NONE -D__STDC_CONSTANT_MACROS -DIMGUI_IMPL_OPENGL_LOADER_GLAD)
+
