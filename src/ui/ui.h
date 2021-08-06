@@ -716,44 +716,6 @@ namespace cr::ui
         ImGui::Unindent(4.f);
     }
 
-    inline std::optional<cr::ImGuiThemes::theme> new_theme;
-    inline void                                  setting_style()
-    {
-        ImGui::Separator();
-        ImGui::Indent(4.0f);
-        ImGui::Text("Custom Theme (?)");
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Don't like the default colours? Spice it up a bit!");
-
-        static std::string current_directory;
-        static std::string current_font;
-        bool               throw_away = false;
-        ImGui::Indent(4.0f);
-
-        ImGui::BeginChild("style-child-region", { 0, ImGui::GetContentRegionAvail().y / 5 });
-
-        static const auto styles =
-          std::array<std::string, 4>({ "Red", "Corporate Grey", "Cherry", "Dark Charcoal" });
-
-        for (auto i = 0; i < styles.size(); i++)
-            if (ImGui::Button(styles[i].c_str()))
-                if (i == 0)
-                    new_theme = cr::ImGuiThemes::theme::RED;
-                else if (i == 1)
-                    new_theme = cr::ImGuiThemes::theme::CORPORATE_GREY;
-                else if (i == 2)
-                    new_theme = cr::ImGuiThemes::theme::CHERRY;
-                else if (i == 3)
-                    new_theme = cr::ImGuiThemes::theme::DARK_CHARCOAL;
-                else if (i == 4)
-                    new_theme = cr::ImGuiThemes::theme::VISUAL_STUDIO;
-                else if (i == 5)
-                    new_theme = cr::ImGuiThemes::theme::GREEN;
-
-        ImGui::EndChild();
-
-        ImGui::Unindent(8.0f);
-    }
 
     inline void setting_instances(cr::renderer *renderer, cr::scene *scene)
     {
@@ -861,12 +823,11 @@ namespace cr::ui
         ImGui::Begin("Misc");
 
         // List all of the different settings
-        static const auto window_settings = std::array<std::string, 8>({ "Render",
+        static const auto window_settings = std::array<std::string, 7>({ "Render",
                                                                          "Export",
                                                                          "Materials",
                                                                          "Asset Loader",
                                                                          "Stats",
-                                                                         "Style",
                                                                          "Camera",
                                                                          "Instances" });
 
@@ -893,7 +854,7 @@ namespace cr::ui
         case 2: setting_materials(renderer->get(), scene->get()); break;
         case 3: setting_asset_loader(renderer, scene, draft_mode); break;
         case 4: setting_stats(renderer->get()); break;
-        case 5: setting_style(); break;
+        // case 5: setting_style(); break;
         case 6: setting_camera(renderer->get(), scene->get()); break;
         case 7: setting_instances(renderer->get(), scene->get()); break;
         }
