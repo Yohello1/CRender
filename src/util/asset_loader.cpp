@@ -89,7 +89,7 @@ namespace
     void export_png(const cr::image &buffer, const std::string &path)
     {
         auto data = std::vector<uint8_t>(buffer.width() * buffer.height() * 4);
-        for (auto i = 0; i < data.size(); i++) data[i] = buffer.data()[i] * 255.f;
+        for (auto i = 0; i < data.size(); i++) data[i] = glm::min(buffer.data()[i] * 255.f, 255.f);
 
         stbi_write_png(
           path.c_str(),
@@ -103,7 +103,7 @@ namespace
     void export_jpg(const cr::image &buffer, const std::string &path)
     {
         auto data = std::vector<uint8_t>(buffer.width() * buffer.height() * 4);
-        for (auto i = 0; i < data.size(); i++) data[i] = buffer.data()[i] * 255.f;
+        for (auto i = 0; i < data.size(); i++) data[i] = glm::min(buffer.data()[i] * 255.f, 255.f);
 
         stbi_write_jpg(path.c_str(), buffer.width(), buffer.height(), 4, data.data(), 100);
     }
@@ -252,25 +252,29 @@ cr::asset_loader::model_data
                   4);
                 stbi_set_flip_vertically_on_load(false);
 
-                auto texture_image = cr::image(image_dimensions.x, image_dimensions.y);
+                if (data != nullptr)
+                {
+                    auto texture_image = cr::image(image_dimensions.x, image_dimensions.y);
 
-                for (auto x = 0; x < image_dimensions.x; x++)
-                    for (auto y = 0; y < image_dimensions.y; y++)
-                    {
-                        const auto base_index = (x + y * image_dimensions.x) * 4;
+                    for (auto x = 0; x < image_dimensions.x; x++)
+                        for (auto y = 0; y < image_dimensions.y; y++)
+                        {
+                            const auto base_index = (x + y * image_dimensions.x) * 4;
 
-                        const auto r = data[base_index + 0] / 255.f;
-                        const auto g = data[base_index + 1] / 255.f;
-                        const auto b = data[base_index + 2] / 255.f;
-                        const auto a = data[base_index + 3] / 255.f;
+                            const auto r = data[base_index + 0] / 255.f;
+                            const auto g = data[base_index + 1] / 255.f;
+                            const auto b = data[base_index + 2] / 255.f;
+                            const auto a = data[base_index + 3] / 255.f;
 
-                        texture_image.set(x, y, glm::vec4(r, g, b, a));
-                    }
+                            texture_image.set(x, y, glm::vec4(r, g, b, a));
+                        }
 
-                stbi_image_free(data);
-                model_data.textures.push_back(std::move(texture_image));
-                material_data.tex = model_data.textures.size() - 1;
-                already_loaded.insert({ material.diffuse_texname, material_data.tex.value() });
+                    stbi_image_free(data);
+                    model_data.textures.push_back(std::move(texture_image));
+                    material_data.tex = model_data.textures.size() - 1;
+                    already_loaded.insert({ material.diffuse_texname, material_data.tex.value() });
+                } else
+                    cr::logger::warn("Failed to find texture [{}], defaulting to blank material", material.diffuse_texname);
             } else
                 material_data.tex = it->second;
         }
@@ -282,10 +286,6 @@ cr::asset_loader::model_data
     {
         for (const auto idx : shape.mesh.indices)
         {
-            if (idx.vertex_index == -1) cr::exit("Vertex index was -1");
-            if (idx.texcoord_index == -1) cr::exit("Tex coord index was -1");
-            if (idx.normal_index == -1) cr::exit("Normal index was -1");
-
             model_data.vertex_indices.push_back(idx.vertex_index);
 
             model_data.texture_indices.push_back(idx.texcoord_index);

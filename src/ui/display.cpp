@@ -129,7 +129,8 @@ void cr::display::start(
   std::unique_ptr<cr::scene> &         scene,
   std::unique_ptr<cr::renderer> &      renderer,
   std::unique_ptr<cr::thread_pool> &   thread_pool,
-  std::unique_ptr<cr::draft_renderer> &draft_renderer)
+  std::unique_ptr<cr::draft_renderer> &draft_renderer,
+  std::unique_ptr<cr::post_processor> &post_processor)
 {
     auto work_group_max = std::array<int, 3>();
 
@@ -206,7 +207,7 @@ void cr::display::start(
         ui::console(messages);
         messages.clear();
 
-        ui::settings(&renderer, &draft_renderer, &scene, &thread_pool, _in_draft_mode);
+        ui::settings(&renderer, &draft_renderer, &scene, &thread_pool, &post_processor, _key_states, _in_draft_mode, speed_multipliers);
 
         ImGui::PopFont();
 
@@ -295,14 +296,14 @@ void cr::display::_update_camera(cr::camera *camera)
     if (
       _key_states[static_cast<int>(key_code::KEY_D)] == key_state::held ||
       _key_states[static_cast<int>(key_code::KEY_D)] == key_state::repeat)
-        translation.x += 3.0f;
+        translation.x -= 3.0f;
 
     if (
       _key_states[static_cast<int>(key_code::KEY_A)] == key_state::held ||
       _key_states[static_cast<int>(key_code::KEY_A)] == key_state::repeat)
-        translation.x -= 3.0f;
+        translation.x += 3.0f;
 
-    translation *= static_cast<float>(_timer.since_last_frame()) * 5.75f;
+    translation *= static_cast<float>(_timer.since_last_frame()) * speed_multipliers.x * 5.75f;
 
     if (
       _key_states[static_cast<int>(key_code::KEY_LEFT_SHIFT)] == key_state::held ||
@@ -311,8 +312,9 @@ void cr::display::_update_camera(cr::camera *camera)
 
     camera->translate(translation);
 
-    rotation.x += _mouse_change_prev.x * 2.0 * _timer.since_last_frame();
+    rotation.x -= _mouse_change_prev.x * 2.0 * _timer.since_last_frame();
     rotation.y -= _mouse_change_prev.y * 2.0 * _timer.since_last_frame();
+    rotation *= speed_multipliers.y;
 
     _mouse_change_prev = {};
 
