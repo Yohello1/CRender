@@ -383,6 +383,7 @@ namespace cr::ui
         ImGui::End();
     }
 
+
     inline void setting_render(
       cr::renderer *                    renderer,
       cr::draft_renderer *              draft_renderer,
