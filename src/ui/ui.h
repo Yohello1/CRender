@@ -11,10 +11,177 @@
 #include <util/denoise.h>
 #include <stb/stbi_image_write.h>
 #include <stb/stb_image.h>
+#include <render/post/post_processor.h>
 #include "display.h"
+
+namespace cr
+{
+    enum key_code
+    {
+        SPACE             = 32,    // I can't wait to write all of these out
+        APOSTROPHE        = 39,
+        COMMA             = 44,
+        MINUS             = 45,
+        PERIOD            = 46,
+        SLASH             = 47,
+        KEY_0             = 48,
+        KEY_1             = 49,
+        KEY_2             = 50,
+        KEY_3             = 51,
+        KEY_4             = 52,
+        KEY_5             = 53,
+        KEY_6             = 54,
+        KEY_7             = 55,
+        KEY_8             = 56,
+        KEY_9             = 57,    // This is starting to get really annoying
+        SEMICOLON         = 59,
+        EQUAL             = 61,
+        KEY_A             = 65,
+        KEY_B             = 66,
+        KEY_C             = 67,
+        KEY_D             = 68,
+        KEY_E             = 69,
+        KEY_F             = 70,
+        KEY_G             = 71,
+        KEY_H             = 72,
+        KEY_I             = 73,
+        KEY_J             = 74,
+        KEY_K             = 75,
+        KEY_L             = 76,
+        KEY_M             = 77,
+        KEY_N             = 78,
+        KEY_O             = 79,
+        KEY_P             = 80,
+        KEY_Q             = 81,
+        KEY_R             = 82,
+        KEY_S             = 83,
+        KEY_T             = 84,
+        KEY_U             = 85,
+        KEY_V             = 86,
+        KEY_W             = 87,
+        KEY_X             = 88,
+        KEY_Y             = 89,
+        KEY_Z             = 90,
+        KEY_LEFT_BRACKET  = 91,  /* [ */
+        KEY_BACKSLASH     = 92,  /* \ */
+        KEY_RIGHT_BRACKET = 93,  /* ] */
+        KEY_GRAVE_ACCENT  = 96,  /* ` */
+        KEY_WORLD_1       = 161, /* non-US #1 */
+        KEY_WORLD_2       = 162, /* non-US #2 */
+        KEY_ESCAPE        = 256,
+        KEY_ENTER         = 257,
+        KEY_TAB           = 258,
+        KEY_BACKSPACE     = 259,
+        KEY_INSERT        = 260,
+        KEY_DELETE        = 261,
+        KEY_RIGHT         = 262,
+        KEY_LEFT          = 263,
+        KEY_DOWN          = 264,
+        KEY_UP            = 265,
+        KEY_PAGE_UP       = 266,
+        KEY_PAGE_DOWN     = 267,
+        KEY_HOME          = 268,
+        KEY_END           = 269,
+        KEY_CAPS_LOCK     = 280,
+        KEY_SCROLL_LOCK   = 281,
+        KEY_NUM_LOCK      = 282,
+        KEY_PRINT_SCREEN  = 283,
+        KEY_PAUSE         = 284,
+        KEY_F1            = 290,
+        KEY_F2            = 291,
+        KEY_F3            = 292,
+        KEY_F4            = 293,
+        KEY_F5            = 294,
+        KEY_F6            = 295,
+        KEY_F7            = 296,
+        KEY_F8            = 297,
+        KEY_F9            = 298,
+        KEY_F10           = 299,
+        KEY_F11           = 300,
+        KEY_F12           = 301,
+        KEY_F13           = 302,
+        KEY_F14           = 303,
+        KEY_F15           = 304,
+        KEY_F16           = 305,
+        KEY_F17           = 306,
+        KEY_F18           = 307,
+        KEY_F19           = 308,
+        KEY_F20           = 309,
+        KEY_F21           = 310,
+        KEY_F22           = 311,
+        KEY_F23           = 312,
+        KEY_F24           = 313,
+        KEY_F25           = 314,
+        KEY_KP_0          = 320,
+        KEY_KP_1          = 321,
+        KEY_KP_2          = 322,
+        KEY_KP_3          = 323,
+        KEY_KP_4          = 324,
+        KEY_KP_5          = 325,
+        KEY_KP_6          = 326,
+        KEY_KP_7          = 327,
+        KEY_KP_8          = 328,
+        KEY_KP_9          = 329,
+        KEY_KP_DECIMAL    = 330,
+        KEY_KP_DIVIDE     = 331,
+        KEY_KP_MULTIPLY   = 332,
+        KEY_KP_SUBTRACT   = 333,
+        KEY_KP_ADD        = 334,
+        KEY_KP_ENTER      = 335,
+        KEY_KP_EQUAL      = 336,
+        KEY_LEFT_SHIFT    = 340,
+        KEY_LEFT_CONTROL  = 341,
+        KEY_LEFT_ALT      = 342,
+        KEY_LEFT_SUPER    = 343,
+        KEY_RIGHT_SHIFT   = 344,
+        KEY_RIGHT_CONTROL = 345,
+        KEY_RIGHT_ALT     = 346,
+        KEY_RIGHT_SUPER   = 347,
+        KEY_MENU          = 348,
+        MAX_KEY           = 1024,
+    };
+
+    enum class key_state
+    {
+        none,       // no input
+        pressed,    // set on frame key is pressed
+        held,       // set on frame after key is pressed while not released
+        repeat,     // equivalent to held but OS triggered
+        released    // set on frame key is released, cleared after one frame
+    };
+}    // namespace cr
 
 namespace cr::ui
 {
+    namespace widgets
+    {
+        inline bool slider_float_input(const std::string &label, float &value, float min, float max)
+        {
+            // Default is the slider
+            static auto text_labels = std::unordered_set<std::string>();
+
+            const auto is_text = text_labels.find(label) != text_labels.end();
+
+            auto updated = false;
+            if (!is_text)
+                updated = ImGui::SliderFloat(label.c_str(), &value, min, max);
+            else
+            {
+                updated = ImGui::InputFloat(label.c_str(), &value);
+                value   = glm::min(value, max);
+                value   = glm::max(value, min);
+            }
+
+            // check if it's a double click
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+                if (is_text)
+                    text_labels.erase(label);
+                else
+                    text_labels.insert(label);
+            return updated;
+        }
+    }    // namespace widgets
+
     struct init_ctx
     {
         ImGuiDockNodeFlags dock_flags;
@@ -220,7 +387,8 @@ namespace cr::ui
       cr::renderer *                    renderer,
       cr::draft_renderer *              draft_renderer,
       cr::scene *                       scene,
-      std::unique_ptr<cr::thread_pool> &pool)
+      std::unique_ptr<cr::thread_pool> &pool,
+      glm::vec2 &speed_multipliers)
     {
         static auto resolution   = glm::ivec2();
         static auto bounces      = int(5);
@@ -250,12 +418,14 @@ namespace cr::ui
 
         if (ImGui::Button("Update"))
         {
-            renderer->update([renderer, draft_renderer, &pool]() {
-                renderer->set_max_bounces(bounces);
-                renderer->set_resolution(resolution.x, resolution.y);
-                draft_renderer->set_resolution(resolution.x, resolution.y);
-                pool = std::make_unique<cr::thread_pool>(thread_count);
-            });
+            renderer->update(
+              [renderer, draft_renderer, &pool]()
+              {
+                  renderer->set_max_bounces(bounces);
+                  renderer->set_resolution(resolution.x, resolution.y);
+                  draft_renderer->set_resolution(resolution.x, resolution.y);
+                  pool = std::make_unique<cr::thread_pool>(thread_count);
+              });
         }
 
         ImGui::Text(
@@ -302,21 +472,62 @@ namespace cr::ui
             ImGui::InputFloat("Intensity", &sun.intensity);
             ImGui::Checkbox("Sun enabled", &sun_enabled);
             ImGui::ColorEdit3("Colour", glm::value_ptr(sun.colour));
-            ImGui::InputFloat3("Sun Direction", glm::value_ptr(sun.direction));
+
+            static auto sun_dir = glm::vec3(0.8, -1, 0.0);
+
+            static auto use_angles = false;
+            ImGui::Checkbox("Use Angles", &use_angles);
+            if (use_angles)
+            {
+                ImGui::SliderFloat("Elevation", &sun_dir.x, -90, 90);
+                ImGui::SliderFloat("Azimuth", &sun_dir.y, 0, 360);
+            }
+            else
+            {
+                ImGui::InputFloat("Direction X", &sun_dir.x);
+                ImGui::InputFloat("Direction Y", &sun_dir.y);
+                ImGui::InputFloat("Direction Z", &sun_dir.z);
+            }
 
             if (ImGui::Button("Update Sun"))
             {
-                renderer->update([sun_enabled = sun_enabled, sun = sun, scene] {
-                    scene->registry()->set_sun(sun);
-                    scene->set_sun_enabled(sun_enabled);
-                });
+                const auto elevation = -sun_dir.x / 360.f * cr::numbers<float>::tau;
+                const auto azimuth   = sun_dir.y / 360.f * cr::numbers<float>::tau;
+
+                if (use_angles)
+                    sun.direction = glm::normalize(glm::vec3(
+                      glm::cos(azimuth) * glm::cos(elevation),
+                      glm::sin(elevation),
+                      glm::sin(azimuth) * glm::sin(elevation)));
+                else
+                    sun.direction = glm::normalize(glm::vec3(sun_dir.x, sun_dir.y, sun_dir.z));
+
+                renderer->update(
+                  [sun_enabled = sun_enabled, sun = sun, scene]
+                  {
+                      scene->registry()->set_sun(sun);
+                      scene->set_sun_enabled(sun_enabled);
+                  });
             }
+
+            ImGui::Unindent(4.f);
+        }
+
+        {
+            ImGui::Separator();
+            ImGui::Text("Input Sensitivity (Draft Mode)");
+            ImGui::Indent(4.f);
+
+            ImGui::SliderFloat("Movement (Keyboard)", &speed_multipliers.x, 0.1f, 20.f);
+            ImGui::SliderFloat("Rotation (Mouse)", &speed_multipliers.y, 0.1f, 20.f);
 
             ImGui::Unindent(4.f);
         }
     }
 
-    inline void setting_export(std::unique_ptr<cr::renderer> *renderer)
+    inline void setting_export(
+      std::unique_ptr<cr::renderer> *      renderer,
+      std::unique_ptr<cr::post_processor> *processor)
     {
         static auto file_string = std::array<char, 32>();
         ImGui::InputTextWithHint("File Name", "Max 32 chars", file_string.data(), 64);
@@ -345,11 +556,13 @@ namespace cr::ui
         static auto export_albedo = false;
         static auto export_normal = false;
         static auto export_depth  = false;
-        static auto denoise       = false;
+        static auto denoise       = true;
+        static auto post_process  = true;
         ImGui::Checkbox("Export Albedo", &export_albedo);
         ImGui::Checkbox("Export Normal", &export_normal);
         ImGui::Checkbox("Export Depth", &export_depth);
         ImGui::Checkbox("Denoise", &denoise);
+        ImGui::Checkbox("Post Process", &post_process);
 
         if (ImGui::Button("Save"))
         {
@@ -360,7 +573,7 @@ namespace cr::ui
 
             const auto data = renderer->get()->current_progress();
 
-            auto folder = export_albedo || export_normal || export_depth || denoise;
+            auto folder = export_albedo || export_normal || export_depth || denoise || post_process;
 
             if (folder)
             {
@@ -373,21 +586,22 @@ namespace cr::ui
             if (export_albedo)
                 cr::asset_loader::export_framebuffer(
                   *renderer->get()->current_albedos(),
-                  (file_str + "-albedos").data(),
+                  file_str + "-albedos",
                   asset_loader::image_type::JPG);
 
             if (export_normal)
                 cr::asset_loader::export_framebuffer(
                   *renderer->get()->current_normals(),
-                  (file_str + "-normals").data(),
+                  file_str + "-normals",
                   asset_loader::image_type::JPG);
 
             if (export_depth)
                 cr::asset_loader::export_framebuffer(
                   *renderer->get()->current_depths(),
-                  (file_str + "-depth").data(),
+                  file_str + "-depth",
                   asset_loader::image_type::JPG);
 
+            auto to_post = *data;
             if (denoise)
             {
                 const auto denoised = cr::denoise(
@@ -395,9 +609,21 @@ namespace cr::ui
                   renderer->get()->current_normals(),
                   renderer->get()->current_albedos(),
                   selected_type);
+
+                if (post_process) to_post = denoised;
+
                 cr::asset_loader::export_framebuffer(
                   denoised,
-                  (file_str + "-denoised").data(),
+                  file_str + "-denoised",
+                  selected_type);
+            }
+
+            if (post_process)
+            {
+                const auto processed = processor->get()->process(to_post);
+                cr::asset_loader::export_framebuffer(
+                  processed,
+                  file_str + "-processed",
                   selected_type);
             }
 
@@ -445,13 +671,16 @@ namespace cr::ui
 
         if (ImGui::Button("Update"))
         {
-            renderer->update(
-              [scene, camera = camera] { *scene->registry()->camera() = camera.value(); });
+            renderer->update([scene, camera = camera]
+                             { *scene->registry()->camera() = camera.value(); });
             camera.reset();
         }
     }
 
-    inline void setting_materials(cr::renderer *renderer, cr::scene *scene)
+    inline void setting_materials(
+      cr::renderer *                                                 renderer,
+      cr::scene *                                                    scene,
+      std::array<key_state, static_cast<size_t>(key_code::MAX_KEY)> &keys)
     {
         const auto models =
           scene->registry()->entities.view<std::string, cr::entity::model_materials>();
@@ -498,31 +727,106 @@ namespace cr::ui
             // This is a cool Imgui thing im going to make (search thing)
             static auto found_material_indices = std::vector<size_t>();
 
+            // noooooo, std::vector<bool>
+            static auto found_material_selected = std::vector<uint8_t>();
+            static auto any_selection           = false;
+
             if (changed || first_time)
+            {
                 found_material_indices = cr::algorithm::find_string_matches<cr::material>(
                   std::string(material_search_string.data()),
                   materials,
                   [](const cr::material &material) { return material.info.name; });
+                found_material_selected.resize(found_material_indices.size(), false);
+            }
 
-            for (const auto index : found_material_indices)
+            any_selection = false;
+            for (auto enabled : found_material_selected)
+                if (enabled)
+                {
+                    any_selection = true;
+                    break;
+                }
+
+            for (auto i = 0; i < found_material_indices.size(); i++)
             {
-                auto &material = materials[index];
+                const auto index    = i;
+                auto &     material = materials[index];
+                const auto selected = found_material_selected[i];
+
                 ImGui::Separator();
                 ImGui::Indent(4.f);
-                ImGui::Text("%s", material.info.name.c_str());
+                ImGui::Text(
+                  "%s",
+                  ((found_material_selected[i] ? "* " : "") + material.info.name).c_str());
+
+                if (!selected && any_selection)
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6, 0.6, 0.6, 1.0));
+
+                // Check if it was attempted to be selected
+                if (
+                  ImGui::IsItemHovered() && (keys[key_code::KEY_LEFT_CONTROL] == key_state::held || keys[key_code::KEY_LEFT_CONTROL] == key_state::repeat) && ImGui::IsMouseDoubleClicked(0))
+                {
+
+                    if (found_material_selected[i])
+                        found_material_selected[i] = false;
+                    else if (keys[key_code::KEY_LEFT_SHIFT] == key_state::held || keys[key_code::KEY_LEFT_SHIFT] == key_state::repeat)
+                    {
+                        auto closest_selection = std::int32_t(-1);
+
+                        // iterate down
+                        for (auto j = i; j >= 0; j--)
+                            if (found_material_selected[j])
+                            {
+                                closest_selection = j;
+                                break;
+                            }
+
+                        // iterate up
+                        for (auto j = i; j < found_material_selected.size(); j++)
+                            if (found_material_selected[j])
+                            {
+                                if (j - i < closest_selection || closest_selection == -1)
+                                    closest_selection = j;
+                                break;
+                            }
+
+                        if (closest_selection == -1)
+                        {
+                            // Dont auto select the other indices
+                            found_material_selected[i] = true;
+                        }
+                        else
+                        {
+                            // Select the indices between the closest one
+                            auto start = glm::min(closest_selection, i);
+                            auto end   = glm::max(closest_selection, i);
+
+                            for (auto j = start; j <= end; j++) found_material_selected[j] = true;
+                        }
+                    }
+                    else
+                        found_material_selected[i] = true;
+                }
                 ImGui::Indent(4.f);
                 static const auto material_types =
                   std::array<std::string, 3>({ "Metal", "Smooth", "Glass" });
                 auto current_type = material.info.shade_type == material::metal ? 0
                   : material.info.shade_type == material::smooth                ? 1
-                                                                          : 2;
+                                                                                : 2;
 
+                auto update_type = false;
                 if (ImGui::BeginCombo(
                       ("Type##" + material.info.name).c_str(),
                       material_types[current_type].c_str()))
                 {
-                    for (auto i = 0; i < material_types.size(); i++)
-                        if (ImGui::Button(material_types[i].c_str())) current_type = i;
+                    for (auto j = 0; j < material_types.size(); j++)
+                        if (ImGui::Button(material_types[j].c_str()))
+                        {
+                            if (current_type != j) update_type = true;
+
+                            current_type = j;
+                        }
                     ImGui::EndCombo();
                 }
 
@@ -532,6 +836,12 @@ namespace cr::ui
                 case 1: material.info.shade_type = material::smooth; break;
                 case 2: material.info.shade_type = material::glass; break;
                 }
+
+                if (update_type && any_selection && selected)
+                    for (auto j = 0; j < found_material_indices.size(); j++)
+                        if (found_material_selected[j])
+                            materials[found_material_indices[j]].info.shade_type =
+                              material.info.shade_type;
 
                 ImGui::Separator();
 
@@ -543,45 +853,80 @@ namespace cr::ui
                     //                      &material.info.roughness,
                     //                      0,
                     //                      1);
-                    ImGui::SliderFloat(
-                      ("Reflectiveness##" + material.info.name).c_str(),
-                      &material.info.reflectiveness,
-                      0,
-                      1);
+                    if (
+                      widgets::slider_float_input(
+                        "Reflectiveness##" + material.info.name,
+                        material.info.reflectiveness,
+                        0,
+                        1) &&
+                      any_selection && selected)
+                    {
+                        for (auto j = 0; j < found_material_indices.size(); j++)
+                            if (found_material_selected[j])
+                                materials[found_material_indices[j]].info.reflectiveness =
+                                  material.info.reflectiveness;
+                    }
                     break;
 
                 case material::smooth: break;
 
                 case material::glass:
-                    ImGui::SliderFloat(
-                      ("IOR##" + material.info.name).c_str(),
-                      &material.info.ior,
-                      1,
-                      2);
+                    if (
+                      widgets::slider_float_input(
+                        "IOR##" + material.info.name,
+                        material.info.ior,
+                        1,
+                        2) &&
+                      any_selection && selected)
+                    {
+                        for (auto j = 0; j < found_material_indices.size(); j++)
+                            if (found_material_selected[j])
+                                materials[found_material_indices[j]].info.ior = material.info.ior;
+                    }
                     break;
                 }
 
-                ImGui::SliderFloat(
-                  ("Emission##" + material.info.name).c_str(),
-                  &material.info.emission,
-                  0,
-                  50);
+                if (
+                  widgets::slider_float_input(
+                    "Emission##" + material.info.name,
+                    material.info.emission,
+                    0,
+                    50) &&
+                  any_selection && selected)
+                {
+                    for (auto j = 0; j < found_material_indices.size(); j++)
+                        if (found_material_selected[j])
+                            materials[found_material_indices[j]].info.emission =
+                              material.info.emission;
+                }
 
                 if (!material.info.tex.has_value())
-                    ImGui::ColorEdit3(
-                      ("Colour##" + material.info.name).c_str(),
-                      glm::value_ptr(material.info.colour));
+                    if (
+                      ImGui::ColorEdit3(
+                        ("Colour##" + material.info.name).c_str(),
+                        glm::value_ptr(material.info.colour)) &&
+                      any_selection && selected)
+                    {
+                        for (auto j = 0; j < found_material_indices.size(); j++)
+                            if (found_material_selected[j])
+                                materials[found_material_indices[j]].info.colour =
+                                  material.info.colour;
+                    }
 
+
+                if (!selected && any_selection)
+                    ImGui::PopStyleColor();
                 ImGui::Unindent(8.f);
             }
 
             if (ImGui::Button("Update Materials"))
             {
-                renderer->update([materials = materials, scene, selected = selected_entity] {
-                    scene->registry()
-                      ->entities.get<cr::entity::model_materials>(selected)
-                      .materials = materials;
-                });
+                renderer->update(
+                  [materials = materials, scene, selected = selected_entity] {
+                      scene->registry()
+                        ->entities.get<cr::entity::model_materials>(selected)
+                        .materials = materials;
+                  });
             }
 
             ImGui::EndChild();
@@ -629,8 +974,8 @@ namespace cr::ui
             const auto model_data = cr::asset_loader::load_model(current_model, current_directory);
 
             if (!in_draft_mode)
-                renderer->get()->update(
-                  [&scene, &model_data] { scene->get()->add_model(model_data); });
+                renderer->get()->update([&scene, &model_data]
+                                        { scene->get()->add_model(model_data); });
             else
                 scene->get()->add_model(model_data);
             cr::logger::info("Finished loading model in [{}s]", timer.time_since_start());
@@ -675,18 +1020,20 @@ namespace cr::ui
             auto timer = cr::timer();
             // Load skybox in
             cr::logger::info("Started to load skybox [{}]", current_skybox.stem().string());
-            renderer->get()->update([&scene, current_skybox = current_skybox, &timer] {
-                auto image  = cr::asset_loader::load_picture(current_skybox.string());
-                auto skybox = cr::image(image.colour, image.res.x, image.res.y);
+            renderer->get()->update(
+              [&scene, current_skybox = current_skybox, &timer]
+              {
+                  auto image  = cr::asset_loader::load_picture(current_skybox.string());
+                  auto skybox = cr::image(image.colour, image.res.x, image.res.y);
 
-                scene->get()->set_skybox(std::move(skybox));
+                  scene->get()->set_skybox(std::move(skybox));
 
-                cr::logger::info("Finished loading skybox in [{}s]", timer.time_since_start());
-                cr::logger::info(
-                  "-- Skybox Stats\n\tResolution:\n\t\tX: [{}]\n\t\tY: [{}]",
-                  image.res.x,
-                  image.res.y);
-            });
+                  cr::logger::info("Finished loading skybox in [{}s]", timer.time_since_start());
+                  cr::logger::info(
+                    "-- Skybox Stats\n\tResolution:\n\t\tX: [{}]\n\t\tY: [{}]",
+                    image.res.x,
+                    image.res.y);
+              });
         }
 
         static auto rotation = glm::vec2();
@@ -694,8 +1041,8 @@ namespace cr::ui
 
         ImGui::SameLine();
         if (ImGui::Button("Update"))
-            renderer->get()->update(
-              [&scene]() { scene->get()->set_skybox_rotation(rotation / 360.f); });
+            renderer->get()->update([&scene]()
+                                    { scene->get()->set_skybox_rotation(rotation / 360.f); });
 
         ImGui::Unindent(8.f);
     }
@@ -756,8 +1103,7 @@ namespace cr::ui
 
             ImGui::Text("Instances");
             ImGui::SameLine();
-            if (ImGui::Button("+"))
-                transforms.push_back(glm::mat4(1));
+            if (ImGui::Button("+")) transforms.push_back(glm::mat4(1));
 
             ImGui::Indent(4.f);
 
@@ -776,14 +1122,15 @@ namespace cr::ui
 
                 glm::decompose(matrix, scale, rotation, translation, skew, perspective);
 
-                ImGui::Text("%s", fmt::format("Translation #{} ##{}", i, i).c_str());
+                ImGui::Text("%s", fmt::format("Translation #{}", i).c_str());
                 ImGui::SameLine();
-                if (ImGui::Button("-"))
-                    to_remove.push_back(i);
+                if (ImGui::Button("-")) to_remove.push_back(i);
 
                 ImGui::Indent(4.0f);
                 ImGui::InputFloat3(fmt::format("Scale##{}", i).c_str(), glm::value_ptr(scale));
-                ImGui::InputFloat3(fmt::format("Translation##{}", i).c_str(), glm::value_ptr(translation));
+                ImGui::InputFloat3(
+                  fmt::format("Translation##{}", i).c_str(),
+                  glm::value_ptr(translation));
                 ImGui::Unindent(4.0f);
 
                 auto out_matrix = glm::mat4(1);
@@ -793,13 +1140,13 @@ namespace cr::ui
                 transforms[i] = out_matrix;
             }
 
-            for (const auto remove : to_remove)
-                transforms.erase(transforms.begin() + remove);
+            for (const auto remove : to_remove) transforms.erase(transforms.begin() + remove);
 
             if (ImGui::Button("Update"))
             {
                 renderer->update(
-                  [scene, transforms = transforms, selected_entity = selected_entity]() {
+                  [scene, transforms = transforms, selected_entity = selected_entity]()
+                  {
                       scene->registry()
                         ->entities.get<cr::entity::instances>(selected_entity)
                         .transforms = transforms;
@@ -813,23 +1160,76 @@ namespace cr::ui
         ImGui::Unindent(4.0f);
     }
 
+    inline void setting_post_process(cr::post_processor &processor)
+    {
+        static auto bloom      = post_processor::bloom_settings();
+        static auto gray_scale = post_processor::gray_scale_settings();
+        static auto tonemap    = post_processor::tonemapping_settings();
+        ImGui::Checkbox("Use Bloom", &bloom.enabled);
+        if (bloom.enabled)
+        {
+            ImGui::Indent(4.f);
+            ImGui::InputFloat("Threshold", &bloom.threshold);
+            ImGui::InputFloat("Bloom Strength", &bloom.strength);
+            ImGui::Unindent(4.f);
+        }
+
+        ImGui::Checkbox("Use Gray Scale", &gray_scale.enabled);
+
+        ImGui::Checkbox("Use Tonemapping", &tonemap.enabled);
+        if (tonemap.enabled)
+        {
+            ImGui::Indent(4.f);
+            ImGui::InputFloat("Exposure", &tonemap.exposure);
+            static const auto tonemapping_operators = std::array<std::string, 4>(
+              { "Linear", "Reinhard", "Jim and Richard", "Uncharted 2" });
+            static auto selected_window = 0;
+
+            if (selected_window != 2)
+                ImGui::InputFloat("Gamma Correction", &tonemap.gamma_correction);
+
+            if (ImGui::BeginCombo(
+                  "Tonemapping Operator",
+                  tonemapping_operators[selected_window].c_str()))
+            {
+                for (auto i = 0; i < tonemapping_operators.size(); i++)
+                    if (ImGui::Button(tonemapping_operators[i].c_str())) selected_window = i;
+                ImGui::EndCombo();
+            }
+            tonemap.type = selected_window;
+            ImGui::Unindent(4.f);
+        }
+
+        if (ImGui::Button("Update"))
+        {
+            processor.submit_bloom_settings(bloom);
+            processor.submit_gray_scale_settings(gray_scale);
+            processor.submit_tonemapping_settings(tonemap);
+        }
+    }
+
     inline void settings(
-      std::unique_ptr<cr::renderer> *      renderer,
-      std::unique_ptr<cr::draft_renderer> *draft_renderer,
-      std::unique_ptr<cr::scene> *         scene,
-      std::unique_ptr<cr::thread_pool> *   pool,
-      bool                                 draft_mode)
+      std::unique_ptr<cr::renderer> *                                renderer,
+      std::unique_ptr<cr::draft_renderer> *                          draft_renderer,
+      std::unique_ptr<cr::scene> *                                   scene,
+      std::unique_ptr<cr::thread_pool> *                             pool,
+      std::unique_ptr<cr::post_processor> *                          post_processor,
+      std::array<key_state, static_cast<size_t>(key_code::MAX_KEY)> &keys,
+      bool                                                           draft_mode,
+      glm::vec2 &speed_multipliers)
     {
         ImGui::Begin("Misc");
 
         // List all of the different settings
-        static const auto window_settings = std::array<std::string, 7>({ "Render",
+
+        static const auto window_settings = std::array<std::string, 9>({ "Render",
                                                                          "Export",
                                                                          "Materials",
                                                                          "Asset Loader",
                                                                          "Stats",
                                                                          "Camera",
-                                                                         "Instances" });
+                                                                         "Instances",
+                                                                         "Post Processing" });
 
         static auto selected_window = 0;
 
@@ -849,14 +1249,15 @@ namespace cr::ui
 
         switch (selected_window)
         {
-        case 0: setting_render(renderer->get(), draft_renderer->get(), scene->get(), *pool); break;
-        case 1: setting_export(renderer); break;
-        case 2: setting_materials(renderer->get(), scene->get()); break;
+        case 0: setting_render(renderer->get(), draft_renderer->get(), scene->get(), *pool, speed_multipliers); break;
+        case 1: setting_export(renderer, post_processor); break;
+        case 2: setting_materials(renderer->get(), scene->get(), keys); break;
         case 3: setting_asset_loader(renderer, scene, draft_mode); break;
         case 4: setting_stats(renderer->get()); break;
         // case 5: setting_style(); break;
         case 6: setting_camera(renderer->get(), scene->get()); break;
         case 7: setting_instances(renderer->get(), scene->get()); break;
+        case 8: setting_post_process(**post_processor); break;
         }
 
         ImGui::EndChild();
